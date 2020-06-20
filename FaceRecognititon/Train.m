@@ -8,12 +8,9 @@ imds = imageDatastore(fullfile(rootFolder, categories), ...
 
 %Define Layer
 varSize = 227;
-conv1 = convolution2dLayer(5,varSize,'Padding',2,'BiasLearnRateFactor',2);
-conv1.Weights = gpuArray(single(randn([5 5 3 varSize])*0.0001));
-fc1 = fullyConnectedLayer(64,'BiasLearnRateFactor',2);
-fc1.Weights = gpuArray(single(randn([64 576])*0.1));
-fc2 = fullyConnectedLayer(4,'BiasLearnRateFactor',2);
-fc2.Weights = gpuArray(single(randn([4 64])*0.1));
+conv1 = convolution2dLayer(5,varSize,'Padding',2,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
+fc1 = fullyConnectedLayer(64,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
+fc2 = fullyConnectedLayer(4,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
 
 layers = [
     imageInputLayer([varSize varSize 3]);
