@@ -1,44 +1,64 @@
-%%Extracting Image
-categories = {'Scarlett','Robert','Mark','Chris'};
+% LOAD IMAGES(CHANGE FOLDER NAMES DEPENDING ON WHAT YOU SAVE)
+outputFolder = fullfile('CNN');
+rootFolder = fullfile(outputFolder, 'ObjectList');
+%STORE IN DS
+imds = imageDatastore(fullfile(rootFolder,categories),'LabelSource','foldernames');
+%SPLIT FOR TRAINING/TEST
+[imdsTrain,imdsValidation] = splitEachLabel(imds,0.7,'randomized');
 
-rootFolder = 'Celebrity';
-imds = imageDatastore(fullfile(rootFolder, categories), ...
-    'LabelSource', 'foldernames');
-%%Resize Image Missing
+%LOAD NET
+netAlex = alexnet;
+%DISPLAY alexnet LAYERS
+%analyzeNetwork(netAlex);
 
-%Define Layer
-varSize = 227;
-conv1 = convolution2dLayer(5,varSize,'Padding',2,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
-fc1 = fullyConnectedLayer(64,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
-fc2 = fullyConnectedLayer(4,'BiasLearnRateFactor',2,'WeightLearnRateFactor',5);
-
+%DEFINE INPUT SIZE
+inputSize = netAlex.Layers(1).InputSize;
+%REPLACE FINAL LAYERS
+layersTransfer = netAlex.Layers(1:end-3);
+%CLASSES DEPENDS ON HOW MANY LABELS WE HAVE
+numClasses = numel(categories(imdsTrain.Labels));
+numClasses = 3;
 layers = [
-    imageInputLayer([varSize varSize 3]);
-    conv1;
-    maxPooling2dLayer(3,'Stride',2);
-    reluLayer();
-    convolution2dLayer(5,32,'Padding',2,'BiasLearnRateFactor',2);
-    reluLayer();
-    averagePooling2dLayer(3,'Stride',2);
-    convolution2dLayer(5,64,'Padding',2,'BiasLearnRateFactor',2);
-    reluLayer();
-    averagePooling2dLayer(3,'Stride',2);
-    fc1;
-    reluLayer();
-    fc2;
-    softmaxLayer()
-    classificationLayer()];
+    layersTransfer
+    fullyConnectedLayer(numClasses,'WeightLearnRateFactor',20,'BiasLearnRateFactor',20)
+    softmaxLayer
+    classificationLayer];
 
-%%Training Option
-opts = trainingOptions('sgdm', ...
-    'InitialLearnRate', 0.001, ...
-    'LearnRateSchedule', 'piecewise', ...
-    'LearnRateDropFactor', 0.1, ...
-    'LearnRateDropPeriod', 8, ...
-    'L2Regularization', 0.004, ...
-    'MaxEpochs', 10, ...
-    'MiniBatchSize', 100, ...
-    'Verbose', true, ...
+%DATA AUGMENTATION
+pixelRange = [-30 30];
+imageAugmenter = imageDataAugmenter('RandXReflection',true,'RandXTranslation',...
+    pixelRange,'RandYTranslation',pixelRange);
+augimdsTrain = augmentedImageDatastore(inputSize(1:2),imdsTrain,...
+    'DataAugmentation',imageAugmenter);
+augimdsValidation = augmentedImageDatastore(inputSize(1:2),imdsValidation);
+
+%TRAIN NETWORK
+options = trainingOptions('sgdm', ...
+    'MiniBatchSize',10, ...
+    'MaxEpochs',6, ...
+    'InitialLearnRate',1e-4, ...
+    'Shuffle','every-epoch', ...
+    'ValidationData',augimdsValidation, ...
+    'ValidationFrequency',3, ...
+    'Verbose',false, ...
     'Plots','training-progress');
 
-[net, info] = trainNetwork(imds, layers, opts);
+netTransfer = trainNetwork(augimdsTrain,layers,options);
+
+%CLASSIFY TEST IMAGE USING netTransfer
+[YPred,scores] = classify(netTransfer,augimdsValidation);
+
+%DISPLAY CLASSIFIED IMAGE & THEIR LABELS
+idx = randperm(numel(imdsValidation.Files),3);
+figure
+for i = 1:3
+    subplot(2,2,i)
+    I = readimage(imdsValidation,idx(i));
+    imshow(I)
+    label = YPred(idx(i));
+    title(string(label));
+end
+
+%PREDICT ACCURACY
+YValidation = imdsValidation.Labels;
+accuracy = mean(YPred == YValidation)
