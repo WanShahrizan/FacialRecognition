@@ -1,15 +1,16 @@
 % LOAD IMAGES(CHANGE FOLDER NAMES DEPENDING ON WHAT YOU SAVE)
-outputFolder = fullfile('CNN');
-rootFolder = fullfile(outputFolder, 'ObjectList');
-%STORE IN DS
-imds = imageDatastore(fullfile(rootFolder,categories),'LabelSource','foldernames');
+categories = {'Ain','Dy','Wan','Yasmin'};
+
+rootFolder = 'Celebrity';
+imds = imageDatastore(fullfile(rootFolder, categories), ...
+    'LabelSource', 'foldernames');
 %SPLIT FOR TRAINING/TEST
 [imdsTrain,imdsValidation] = splitEachLabel(imds,0.7,'randomized');
 
 %LOAD NET
 netAlex = alexnet;
 %DISPLAY alexnet LAYERS
-%analyzeNetwork(netAlex);
+analyzeNetwork(netAlex);
 
 %DEFINE INPUT SIZE
 inputSize = netAlex.Layers(1).InputSize;
@@ -17,7 +18,7 @@ inputSize = netAlex.Layers(1).InputSize;
 layersTransfer = netAlex.Layers(1:end-3);
 %CLASSES DEPENDS ON HOW MANY LABELS WE HAVE
 numClasses = numel(categories(imdsTrain.Labels));
-numClasses = 3;
+numClasses = 4;
 layers = [
     layersTransfer
     fullyConnectedLayer(numClasses,'WeightLearnRateFactor',20,'BiasLearnRateFactor',20)
@@ -49,16 +50,34 @@ netTransfer = trainNetwork(augimdsTrain,layers,options);
 [YPred,scores] = classify(netTransfer,augimdsValidation);
 
 %DISPLAY CLASSIFIED IMAGE & THEIR LABELS
-idx = randperm(numel(imdsValidation.Files),3);
+% idx = randperm(numel(imdsValidation.Files),4);
+% figure
+% for i = 1:4
+%     subplot(2,2,i)
+%     I = readimage(imdsValidation,idx(i));
+%     imshow(I)
+%     label = YPred(idx(i));
+%     title(string(label));
+% end
+
+im = imread('img_2.jpg');
+label = classify(netTransfer,im);
+disp(label)
 figure
-for i = 1:3
-    subplot(2,2,i)
-    I = readimage(imdsValidation,idx(i));
-    imshow(I)
-    label = YPred(idx(i));
-    title(string(label));
-end
+imshow(im)
+title(string(label))
+
+
+% idx = randperm(numel(imdsValidation.Files),4);
+% im = imread('img_1.jpg');
+% if YPred == augimdsValidation.Labels
+%    label = YPred(idx(im));
+%    title(string(label));
+% else
+%     colorText = 'r';
+% end
+
 
 %PREDICT ACCURACY
 YValidation = imdsValidation.Labels;
-accuracy = mean(YPred == YValidation)
+accuracy = mean(YPred == YValidation);
