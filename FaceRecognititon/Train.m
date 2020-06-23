@@ -67,17 +67,6 @@ figure
 imshow(im)
 title(string(label))
 
-
-% idx = randperm(numel(imdsValidation.Files),4);
-% im = imread('img_1.jpg');
-% if YPred == augimdsValidation.Labels
-%    label = YPred(idx(im));
-%    title(string(label));
-% else
-%     colorText = 'r';
-% end
-
-
 %PREDICT ACCURACY
 YValidation = imdsValidation.Labels;
 accuracy = mean(YPred == YValidation);
